@@ -1,0 +1,43 @@
+# Generic ignores for a language-agnostic project
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+
+# Virtual environment folders
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Node modules
+node_modules/
+
+# Build outputs
+build/
+dist/
+coverage/
+*.egg-info/
+
+# IDE/editor folders
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Logs
+*.log
+
+# Maven/Gradle
+target/
+.gradle/
+
+# Other
+coverage/
