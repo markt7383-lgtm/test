@@ -1,0 +1,695 @@
+{
+  "name": "Attachment Analysis Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment",
+          "readStatus": "unread"
+        },
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "id": "0e9143e6-ba9a-42a1-8826-8235c765966a",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        224,
+        512
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "qIVe7dAl0mAUuHiz",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst bin = item.binary.attachment_0;\nreturn [\n  {\n    json: {\n      fileName: bin.fileName || 'unknown',\n      fileExtension: bin.fileExtension || 'unknown',\n      mimeType: bin.mimeType || 'application/octet-stream'\n    },\n    binary: {\n      attachment_0: bin\n    }\n  }\n];"
+      },
+      "id": "4c423ce5-b544-4f23-b510-36a559e5131f",
+      "name": "Detect File Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "75a4711a-162c-48da-8a47-82b108b96e46",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6a34664c-4271-4af1-bc8d-bc04c5556518",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c65ae0c7-bcb8-4cce-8cf0-e648d08d56ea",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "image/",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "676e75d3-9d51-42c4-a63c-c6a2c85a5b23",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "id": "9708105c-9227-4679-8846-dcd46f3dc1ec",
+      "name": "Extract from PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Document Content:\n\n{{ $json.text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an AI document classification assistant. Classify a business document and extract only the essential metadata. Return ONLY valid JSON in the format { \"content_nature\": \"\", \"file_type\": \"\", \"summary\": \"\" }. Focus on the overall document, do NOT list contents, keep the summary to one concise sentence, and use \"Unknown\" when a value cannot be determined."
+        }
+      },
+      "id": "74702ee3-a618-4878-b4db-2d7608e76fb7",
+      "name": "Analyze Document",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1344,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "70ecaa33-45be-4754-af76-47581fb4c14b",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        224
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "RjyYNoqYxXX3XtSS",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"content_nature\": \"\",\n  \"file_type\": \"\",\n  \"summary\": \"\"\n}"
+      },
+      "id": "7218a7be-a848-41c0-9ee3-72523dbc1c9b",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1488,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const a = $input.first().json.output || {};\nreturn [{ json: {\n  content_nature: a.content_nature || 'Unknown',\n  summary: a.summary || 'No summary',\n  file_type: $('Detect File Type').first().json.fileExtension || 'pdf',\n  sender: $('Gmail Trigger').first().json.from || 'Unknown Sender'\n} }];"
+      },
+      "id": "6aed0db1-ec57-42b3-bf6b-5ce6b92398c7",
+      "name": "Normalize PDF Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "app10rgUq4bkp9CqS",
+          "mode": "list",
+          "cachedResultName": "AI Document CRM",
+          "cachedResultUrl": "https://airtable.com/app10rgUq4bkp9CqS"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblb7f9HjkpQHBniD",
+          "mode": "list",
+          "cachedResultName": "AI Workflow Logs",
+          "cachedResultUrl": "https://airtable.com/app10rgUq4bkp9CqS/tblb7f9HjkpQHBniD"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Sender": "={{ $json.sender }}",
+            "Content Nature": "={{ $json.content_nature }}",
+            "File Type": "={{ $json.file_type }}",
+            "Summary": "={{ $json.summary }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Sender",
+              "displayName": "Sender",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Content Nature",
+              "displayName": "Content Nature",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "File Type",
+              "displayName": "File Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d64bae92-8874-4c25-855b-67dc906b60ef",
+      "name": "Create a record",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        512
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "QvBlTpn6uhqSHFBy",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "8643559154",
+        "text": "=You just received an attachment. 📩\n\nFrom: {{ $('Create a record').item.json.fields.Sender }}\n\nFile Type: {{ $('Create a record').item.json.fields['File Type'] }}\n\nSummary: {{ $('Create a record').item.json.fields.Summary }}\n\nAttachment Nature: {{ $('Create a record').item.json.fields['Content Nature'] }}",
+        "additionalFields": {}
+      },
+      "id": "0031c940-103a-4c96-9091-8e8211bb6ef6",
+      "name": "Send a text message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2144,
+        512
+      ],
+      "webhookId": "836bb425-5fac-442a-8ace-800fbc5189e8",
+      "credentials": {
+        "telegramApi": {
+          "id": "SdCLjAuT9bkINQKf",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "id": "dd6ea029-7462-470c-bcb0-852c4314c2c4",
+      "name": "Extract from XLSX",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const combinedContent = items.map(item => JSON.stringify(item.json)).join('\\n\\n');\nreturn [{ json: { spreadsheet_content: combinedContent } }];"
+      },
+      "id": "0a7c2612-f423-497c-8803-35a08514c6b6",
+      "name": "Combine Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Spreadsheet content:\n\n{{ $json.spreadsheet_content }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an AI spreadsheet analysis assistant. Analyze the spreadsheet as ONE business document. Do NOT analyze individual rows or summarize every record. Return ONLY valid JSON in the format { \"content_nature\": \"\", \"file_type\": \"\", \"summary\": \"\" } where content_nature describes the business purpose in one short phrase and summary is ONE concise sentence describing the spreadsheet as a whole."
+        }
+      },
+      "id": "34f8ae7b-ed20-4e8e-9907-d8f66fdcd520",
+      "name": "Analyze Spreadsheet",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1344,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "10b51210-5dbb-402e-8516-cad79d479c56",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1360,
+        624
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "RjyYNoqYxXX3XtSS",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"content_nature\": \"\",\n  \"file_type\": \"\",\n  \"summary\": \"\"\n}"
+      },
+      "id": "798bab4c-20e8-43a0-ab3e-934d1f1c1fe8",
+      "name": "Structured Output Parser1",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1488,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const a = $input.first().json.output || {};\nreturn [{ json: {\n  content_nature: a.content_nature || 'Unknown',\n  summary: a.summary || 'No summary',\n  file_type: $('Detect File Type').first().json.fileExtension || 'xlsx',\n  sender: $('Gmail Trigger').first().json.from || 'Unknown Sender'\n} }];"
+      },
+      "id": "73b24618-b16a-4f18-b31b-7d5b03585e46",
+      "name": "Normalize XLSX Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "GPT-5-MINI",
+          "cachedResultUrl": ""
+        },
+        "text": "Describe this image and identify its business purpose in one concise sentence. Focus on the overall content, not minor details.",
+        "inputType": "base64",
+        "binaryPropertyName": "attachment_0",
+        "options": {
+          "detail": "auto",
+          "maxTokens": 300
+        }
+      },
+      "id": "ae4449c8-371d-463c-9dfb-c85bd7747c49",
+      "name": "Analyze Image",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1408,
+        800
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HMwXhiOA26m83deG",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function extractText(raw) {\n  if (raw == null) return '';\n  if (typeof raw === 'string') return raw;\n  if (Array.isArray(raw)) return raw.map(extractText).filter(Boolean).join(' ').trim();\n  if (typeof raw === 'object') {\n    if (typeof raw.text === 'string') return raw.text;\n    if (raw.type === 'output_text' && typeof raw.text === 'string') return raw.text;\n    if (raw.content) return extractText(raw.content);\n    if (raw.output) return extractText(raw.output);\n    if (raw.message) return extractText(raw.message);\n  }\n  return '';\n}\nconst j = $input.first().json;\nconst desc = extractText(j.output ?? j.content ?? j.text ?? j) || 'No description';\nreturn [{ json: {\n  content_nature: 'Image / Visual content',\n  summary: desc,\n  file_type: $('Detect File Type').first().json.fileExtension || 'image',\n  sender: $('Gmail Trigger').first().json.from || 'Unknown Sender'\n} }];"
+      },
+      "id": "b4a6111d-026c-49f1-891a-728ba5f969de",
+      "name": "Normalize Image Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        800
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Detect File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect File Type": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Extract from PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from XLSX",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from PDF": {
+      "main": [
+        [
+          {
+            "node": "Analyze Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Document": {
+      "main": [
+        [
+          {
+            "node": "Normalize PDF Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyze Document",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Analyze Document",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize PDF Result": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from XLSX": {
+      "main": [
+        [
+          {
+            "node": "Combine Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Rows": {
+      "main": [
+        [
+          {
+            "node": "Analyze Spreadsheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Spreadsheet": {
+      "main": [
+        [
+          {
+            "node": "Normalize XLSX Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyze Spreadsheet",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Analyze Spreadsheet",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize XLSX Result": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Image": {
+      "main": [
+        [
+          {
+            "node": "Normalize Image Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Image Result": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "350398bd-f52f-4f8a-b765-71397bb64f12",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6c31899a36a0cc328b6db671bec30ec5e58c49ddc013c07e94c2835f536eac4f"
+  },
+  "nodeGroups": [],
+  "id": "3XBQeZRPf13wxha8",
+  "tags": []
+}
